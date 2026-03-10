@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>张谷五子棋 - 智能对战 v1.0.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            overflow: hidden;
+        }
+
+        /* 背景装饰 */
+        .bg-decoration {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.1;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .bg-circle:nth-child(1) {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(135deg, #00ff88, #00d4aa);
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .bg-circle:nth-child(2) {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            bottom: 10%;
+            right: 10%;
+            animation-delay: -5s;
+        }
+
+        .bg-circle:nth-child(3) {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, #00ff88, #a855f7);
+            top: 50%;
+            left: 50%;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -30px) scale(1.1); }
+            50% { transform: translate(-20px, 20px) scale(0.9); }
+            75% { transform: translate(20px, 10px) scale(1.05); }
+        }
+
+        /* 游戏容器 */
+        .game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.5),
+                0 0 100px rgba(0, 255, 136, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+        }
+
+        /* Logo区域 */
+        .logo-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #00ff88, #a855f7);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-icon::before {
+            content: '张';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-size: 20px;
+            opacity: 0.9;
+        }
+
+        .logo-icon::after {
+            content: '谷';
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            font-size: 20px;
+            opacity: 0.9;
+        }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .logo-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 2px;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .logo-subtitle {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 4px;
+        }
+
+        /* 游戏信息栏 */
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .player-stone {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .player-stone.green {
+            background: radial-gradient(circle at 30% 30%, #00ff88, #00aa66);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .player-stone.purple {
+            background: radial-gradient(circle at 30% 30%, #a855f7, #7c3aed);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+        }
+
+        .player-name {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .turn-indicator {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(168, 85, 247, 0.2));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 13px;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        /* Phaser游戏画布 */
+        #game-container {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 提示区域 */
+        .tip-area {
+            margin-top: 16px;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(168, 85, 247, 0.1));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .tip-text {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.5;
+        }
+
+        .tip-text.technique {
+            color: #00ff88;
+        }
+
+        .tip-text.encouragement {
+            color: #a855f7;
+        }
+
+        /* 控制按钮 */
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00ff88, #00aa66);
+            color: #000;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* 游戏结束弹窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            animation: modalAppear 0.3s ease;
+        }
+
+        @keyframes modalAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+
+        .modal-title.win {
+            color: #00ff88;
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        .modal-message {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 24px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 16px;
+            }
+
+            .logo-icon {
+                width: 50px;
+                height: 50px;
+            }
+
+            .logo-title {
+                font-size: 20px;
+            }
+
+            .logo-icon::before,
+            .logo-icon::after {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-decoration">
+        <div class="bg-circle"></div>
+        <div class="bg-circle"></div>
+        <div class="bg-circle"></div>
+    </div>
+
+    <div class="game-wrapper">
+        <div class="game-container">
+            <!-- Logo -->
+            <div class="logo-area">
+                <div class="logo-icon"></div>
+                <div class="logo-text">
+                    <div class="logo-title">张谷五子棋</div>
+                    <div class="logo-subtitle">ZHANGGU GOMOKU</div>
+                </div>
+            </div>
+
+            <!-- 游戏信息 -->
+            <div class="game-info">
+                <div class="player-info">
+                    <div class="player-stone green" id="currentStone"></div>
+                    <span class="player-name" id="currentPlayer">绿方回合</span>
+                </div>
+                <div class="turn-indicator" id="turnIndicator">第 1 手</div>
+            </div>
+
+            <!-- 游戏画布 -->
+            <div id="game-container"></div>
+
+            <!-- 提示区域 -->
+            <div class="tip-area" id="tipArea">
+                <div class="tip-text" id="tipText">欢迎来到张谷五子棋！绿方先行，点击棋盘落子</div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="controls">
+                <button class="btn btn-secondary" onclick="if(gameInstance){gameInstance.restartGame();}">🔄 重新开始</button>
+                <button class="btn btn-primary" onclick="if(gameInstance){gameInstance.undoMove();}">↩️ 悔棋</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏结束弹窗 -->
+    <div class="modal-overlay" id="gameOverModal">
+        <div class="modal-content">
+            <div class="modal-title win" id="modalTitle">🎉 胜利！</div>
+            <div class="modal-message" id="modalMessage">绿方获得胜利！</div>
+            <button class="btn btn-primary" onclick="if(gameInstance){gameInstance.restartGame();}document.getElementById('gameOverModal').classList.remove('active');">再来一局</button>
+        </div>
+    </div>
+
+    <script src="src/game.js"></script>
+</body>
+</html>
